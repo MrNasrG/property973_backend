@@ -1,0 +1,388 @@
+{
+	"info": {
+		"name": "Yumni App — API (Laravel JWT)",
+		"description": "REST API under `/api/v1`. JWT bearer auth (tymon/jwt-auth). **Email auth:** `/register`, `/login`. **Mobile app flow:** `/mobile/*` (phone + 4-digit OTP + optional password reset). With `APP_DEBUG=true`, OTP responses include `debug_otp` for Postman. Set `baseUrl` to your app URL.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://127.0.0.1:8000"
+		},
+		{
+			"key": "accessToken",
+			"value": ""
+		},
+		{
+			"key": "passwordResetToken",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    try {",
+									"        var j = pm.response.json();",
+									"        if (j.access_token) {",
+									"            pm.collectionVariables.set(\"accessToken\", j.access_token);",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"API User\",\n  \"email\": \"api.user@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/register",
+						"description": "Creates a user and returns JWT `access_token` (+ user payload)."
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    try {",
+									"        var j = pm.response.json();",
+									"        if (j.access_token) {",
+									"            pm.collectionVariables.set(\"accessToken\", j.access_token);",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"api.user@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/login",
+						"description": "Returns `access_token` on success; 401 with `message` on failure."
+					}
+				},
+				{
+					"name": "Me",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/me",
+						"description": "Current authenticated user (`user` object)."
+					}
+				},
+				{
+					"name": "Refresh token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    try {",
+									"        var j = pm.response.json();",
+									"        if (j.access_token) {",
+									"            pm.collectionVariables.set(\"accessToken\", j.access_token);",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/refresh",
+						"description": "Issues a new JWT; test script updates `accessToken`."
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/logout",
+						"description": "Invalidates the current token."
+					}
+				}
+			]
+		},
+		{
+			"name": "Mobile — phone + OTP",
+			"description": "Matches mobile screens: Sign Up → OTP → Login; Forgot Password → OTP → Reset password. Uses `country_code` (e.g. +91) and `mobile_number` (digits, spaces allowed).",
+			"item": [
+				{
+					"name": "1. Sign up",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Demo User\",\n  \"country_code\": \"+91\",\n  \"mobile_number\": \"9876543210\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/mobile/register",
+						"description": "Creates user (unverified phone), sends 4-digit OTP. Response may include `debug_otp` when APP_DEBUG=true. No JWT until verify-otp."
+					}
+				},
+				{
+					"name": "2. Verify OTP (after sign up)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    try {",
+									"        var j = pm.response.json();",
+									"        if (j.access_token) {",
+									"            pm.collectionVariables.set(\"accessToken\", j.access_token);",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country_code\": \"+91\",\n  \"mobile_number\": \"9876543210\",\n  \"otp\": \"0000\",\n  \"purpose\": \"register\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/mobile/verify-otp",
+						"description": "Set `otp` to the code from SMS or `debug_otp`. `purpose`: register. Returns JWT."
+					}
+				},
+				{
+					"name": "3. Login (phone + password)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    try {",
+									"        var j = pm.response.json();",
+									"        if (j.access_token) {",
+									"            pm.collectionVariables.set(\"accessToken\", j.access_token);",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country_code\": \"+91\",\n  \"mobile_number\": \"9876543210\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/mobile/login",
+						"description": "403 `requires_verification` if phone not verified."
+					}
+				},
+				{
+					"name": "4. Forgot password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country_code\": \"+91\",\n  \"mobile_number\": \"9876543210\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/mobile/forgot-password",
+						"description": "Sends OTP for verified accounts. Generic message if number unknown (no user enumeration)."
+					}
+				},
+				{
+					"name": "5. Verify OTP (forgot password)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    try {",
+									"        var j = pm.response.json();",
+									"        if (j.password_reset_token) {",
+									"            pm.collectionVariables.set(\"passwordResetToken\", j.password_reset_token);",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country_code\": \"+91\",\n  \"mobile_number\": \"9876543210\",\n  \"otp\": \"0000\",\n  \"purpose\": \"forgot_password\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/mobile/verify-otp",
+						"description": "Returns `password_reset_token` (30 min). Test script stores it in `passwordResetToken`."
+					}
+				},
+				{
+					"name": "6. Reset password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    try {",
+									"        var j = pm.response.json();",
+									"        if (j.access_token) {",
+									"            pm.collectionVariables.set(\"accessToken\", j.access_token);",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"password_reset_token\": \"{{passwordResetToken}}\",\n  \"password\": \"newpassword123\",\n  \"password_confirmation\": \"newpassword123\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/mobile/reset-password",
+						"description": "Consumes token from step 5; returns new JWT."
+					}
+				},
+				{
+					"name": "Resend OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country_code\": \"+91\",\n  \"mobile_number\": \"9876543210\",\n  \"purpose\": \"register\"\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/mobile/resend-otp",
+						"description": "`purpose`: `register` or `forgot_password`. 429 with `retry_after` if cooldown active (~60s)."
+					}
+				}
+			]
+		}
+	]
+}

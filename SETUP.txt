@@ -1,0 +1,31 @@
+Laravel JWT + Admin boilerplate — first run
+===========================================
+
+1. composer install
+2. Copy .env.example to .env
+3. php artisan key:generate
+4. php artisan jwt:secret
+5. php artisan migrate --seed
+
+Admin panel (session auth)
+--------------------------
+- URL: /admin/login
+- After seed: email admin@example.com, password: password
+- Dashboard: /admin/dashboard
+- Optional: set ADMIN_ALLOW_REGISTRATION=true in .env to enable /admin/register
+
+JWT API
+-------
+Base path: /api/v1
+
+Public:
+  POST /api/v1/register   JSON: name, email, password, password_confirmation
+  POST /api/v1/login      JSON: email, password
+    → Returns access_token (Bearer), token_type, expires_in, user
+
+Bearer required:
+  GET  /api/v1/me
+  POST /api/v1/logout
+  POST /api/v1/refresh
+
+Demo API user after seed: user@example.com / password
