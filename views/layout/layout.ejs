@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof title !== 'undefined' ? title : 'Admin Panel' %></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #f0f2f5; }
+        .sidebar { width: 240px; min-height: 100vh; background: #1e1b4b; position: fixed; top: 0; left: 0; z-index: 100; padding-top: 20px; }
+        .sidebar .brand { color: #fff; font-size: 1.4rem; font-weight: 700; padding: 16px 24px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 10px 24px; border-radius: 8px; margin: 2px 12px; font-size: 0.95rem; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,0.1); color: #fff; }
+        .sidebar .nav-link i { margin-right: 10px; font-size: 1.1rem; }
+        .sidebar .nav-section { color: rgba(255,255,255,0.45); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 18px 24px 8px; font-weight: 600; }
+        .main-content { margin-left: 240px; padding: 24px; }
+        .topbar { background: #fff; border-radius: 12px; padding: 14px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+        .topbar .page-title { font-size: 1.1rem; font-weight: 600; color: #1e1b4b; margin: 0; }
+        .topbar .user-info { display: flex; align-items: center; gap: 10px; font-size: 0.92rem; color: #555; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 1px 8px rgba(0,0,0,0.07); }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand"><i class="bi bi-grid-fill"></i> AdminPanel</div>
+        <nav class="nav flex-column mt-3">
+            <a class="nav-link <%= typeof navActive !== 'undefined' && navActive === 'dashboard' ? 'active' : '' %>" href="/index"><i class="bi bi-speedometer2"></i> Dashboard</a>
+            <div class="nav-section">Database</div>
+            <a class="nav-link <%= typeof navActive !== 'undefined' && navActive === 'users' ? 'active' : '' %>" href="/database/users"><i class="bi bi-table"></i> Users</a>
+            <a class="nav-link <%= typeof navActive !== 'undefined' && navActive === 'listings' ? 'active' : '' %>" href="/database/listings"><i class="bi bi-building"></i> Property Listings</a>
+            <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        </nav>
+    </div>
+    <div class="main-content">
+        <div class="topbar">
+            <h5 class="page-title"><%= typeof title !== 'undefined' ? title : 'Dashboard' %></h5>
+            <div class="user-info">
+                <i class="bi bi-person-circle"></i>
+                <span><%= typeof locals.username !== 'undefined' ? locals.username : '' %></span>
+                <a href="/logout" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
+            </div>
+        </div>
+        <%- body %>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

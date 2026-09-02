@@ -1,66 +1,129 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Node.js App — Hostinger Deployment Guide
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Prerequisites
+- Node.js >= 16
+- MySQL database created in Hostinger hPanel
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Step 1 — Configure Database
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Edit `config.env` and fill in your Hostinger MySQL credentials:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=u123456_yourdb        ← from hPanel
+DB_USER=u123456_youruser      ← from hPanel
+DB_PASSWORD=your_password     ← from hPanel
+```
 
-## Learning Laravel
+Also set strong secrets:
+```
+SESSION_SECRET=some_long_random_string
+JWT_ACCESS_SECRET=another_long_random_string
+JWT_REFRESH_SECRET=yet_another_random_string
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+For OTP, welcome, and forgot-password emails (Hostinger SMTP from **hPanel → Emails → Manage → Connect Apps & Devices**):
+```
+EMAIL_HOST=smtp.hostinger.com
+EMAIL_PORT=587
+EMAIL_SECURE=0
+EMAIL_USERNAME=hello@yourdomain.com
+EMAIL_PASSWORD=your_email_account_password
+EMAIL_FROM=hello@yourdomain.com
+EMAIL_FORGET_PSWD_SUBJECT=Reset your password
+EMAIL_OTP_SUBJECT=Your verification code
+EMAIL_WELCOME_SUBJECT=Welcome
+EMAIL_LOG_LINK=1
+APP_PUBLIC_URL=https://yourdomain.com
+PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE=1
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Dev: `GET /api/email/status` and `POST /api/email/test` with `{ "email": "..." }` to verify SMTP.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+**Auth APIs**
 
-## Laravel Sponsors
+| Method | Path | Body |
+|--------|------|------|
+| POST | `/auth/register` | `{ "fullName", "mobileNumber", "email", "password" }` — OTP emailed |
+| POST | `/auth/otp/send` | `{ "fullName", "mobileNumber", "password" }` — OTP emailed |
+| POST | `/auth/otp/verify` | `{ "mobileNumber", "otp" }` |
+| POST | `/auth/forgot-password` | `{ "email" }` reset link **or** `{ "mobileNumber" }` OTP emailed |
+| POST | `/auth/forgot-password/verify-otp` | `{ "mobileNumber", "otp" }` → `resetToken` |
+| GET | `/auth/reset-password/verify?resetToken=...` | — |
+| POST | `/auth/reset-password` | `{ "resetToken", "password", "confirmPassword" }` |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Set `OTP_HIDE_FROM_RESPONSE=1` in production. Set `PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE=1` in dev to receive `data.resetToken` from email forgot-password.
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+## Step 2 — Install Dependencies
 
-## Contributing
+```bash
+npm install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## Step 3 — Run Database Migrations
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Creates all tables (users, verify_otp, etc.):
 
-## Security Vulnerabilities
+```bash
+npm run db:migrate
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Seed the default admin user (`admin@admin.com` / `Admin@123`):
 
-## License
+```bash
+npm run db:seed
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## Step 4 — Start the App
+
+```bash
+# Direct start
+npm start
+
+# Recommended: use PM2 to keep it running
+npm install -g pm2
+pm2 start app.js --name "nodejs-app"
+pm2 save
+pm2 startup
+```
+
+---
+
+## Available npm Scripts
+
+| Command | Description |
+|---|---|
+| `npm start` | Start the app |
+| `npm run db:migrate` | Run all pending migrations |
+| `npm run db:migrate:undo` | Undo last migration |
+| `npm run db:seed` | Seed admin user |
+| `npm run db:seed:undo` | Remove seeded data |
+
+---
+
+## Default Admin Login
+- **URL:** `/login`
+- **Email:** `admin@admin.com`
+- **Password:** `Admin@123`
+
+> Change the password after first login!
+
+---
+
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `Access denied for user` | Check DB_USER / DB_PASSWORD in config.env |
+| `Unknown database` | Create the DB in hPanel first |
+| `ECONNREFUSED` | Try `DB_HOST=127.0.0.1` instead of `localhost` |
+| Migrations fail | Run `npm run db:migrate:undo` then retry |

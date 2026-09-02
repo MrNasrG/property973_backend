@@ -1,0 +1,125 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-listings-api-nodejs",
+    "name": "Property 973 — Listings API",
+    "description": "Owner property listings CRUD at `/listings`. Requires JWT from Auth collection.\n\nRun `npm run db:migrate` first.\n\nOpenAPI: `docs/listings-openapi.yaml`\ncURL examples: `docs/listings-curl.md`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    { "key": "listingId", "value": "" },
+    { "key": "photoId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "GET Public listings (homepage)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{baseUrl}}/listings/public?page=1&limit=12&sort=-createdAt",
+          "host": ["{{baseUrl}}"],
+          "path": ["listings", "public"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "12" },
+            { "key": "sort", "value": "-createdAt" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET Public listing detail",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": "{{baseUrl}}/listings/public/{{listingId}}"
+      }
+    },
+    {
+      "name": "POST Create listing (JSON)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.test('success true', () => pm.expect(j.success).to.eql(true));",
+              "if (j.data?.id) pm.collectionVariables.set('listingId', j.data.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"listingKind\": \"licensed\",\n  \"purpose\": \"rent\",\n  \"propertyType\": \"Apartment\",\n  \"city\": \"Juffair\",\n  \"district\": \"Block 123\",\n  \"price\": 65000,\n  \"premiumPeriod\": \"yearly\",\n  \"area\": 120,\n  \"bedrooms\": \"3\",\n  \"livingRooms\": \"1\",\n  \"wc\": \"2\",\n  \"floor\": \"Ground\",\n  \"ageLessThan\": \"New\",\n  \"occupantType\": \"family\",\n  \"furnished\": true,\n  \"description\": \"Spacious apartment in Juffair\",\n  \"contactPhone\": \"+97312345678\"\n}"
+        },
+        "url": "{{baseUrl}}/listings"
+      }
+    },
+    {
+      "name": "GET List my listings",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/listings?page=1&limit=10&sort=-createdAt",
+          "host": ["{{baseUrl}}"],
+          "path": ["listings"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" },
+            { "key": "sort", "value": "-createdAt" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET Single listing",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/listings/{{listingId}}"
+      }
+    },
+    {
+      "name": "PATCH Update listing",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"price\": 70000 }"
+        },
+        "url": "{{baseUrl}}/listings/{{listingId}}"
+      }
+    },
+    {
+      "name": "DELETE Soft-delete listing",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/listings/{{listingId}}"
+      }
+    },
+    {
+      "name": "DELETE Photo",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/listings/{{listingId}}/photos/{{photoId}}"
+      }
+    }
+  ]
+}

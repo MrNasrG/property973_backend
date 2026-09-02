@@ -1,0 +1,45 @@
+<% if (messages && messages.error && messages.error.length > 0) { %>
+<div class="alert alert-danger"><%= messages.error[0] %></div>
+<% } %>
+<% if (messages && messages.message && messages.message.length > 0) { %>
+<div class="alert alert-success"><%= messages.message[0] %></div>
+<% } %>
+
+<div class="card p-4" style="max-width: 520px;">
+    <h6 class="fw-bold mb-4" style="color:#1e1b4b;">
+        <%= user ? 'Edit user' : 'New user' %>
+    </h6>
+    <form action="<%= formAction %>" method="<%= formMethod %>">
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input type="text" name="name" class="form-control" required maxlength="255"
+                value="<%= user ? user.name : '' %>">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" maxlength="255"
+                value="<%= user && user.email ? user.email : '' %>"
+                placeholder="Optional">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Mobile (E.164, e.g. +15551234567)</label>
+            <input type="text" name="mobile_number" class="form-control" maxlength="32"
+                value="<%= user && user.mobile_number ? user.mobile_number : '' %>"
+                placeholder="Optional">
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" name="mobile_verified" value="1" class="form-check-input" id="mobile_verified"
+                <%= (!user || user.mobile_verified) ? 'checked' : '' %>>
+            <label class="form-check-label" for="mobile_verified">Mobile verified</label>
+        </div>
+        <div class="mb-4">
+            <label class="form-label">Password <%= user ? '(leave blank to keep current)' : '' %></label>
+            <input type="password" name="password" class="form-control" <%= user ? '' : 'required' %>
+                autocomplete="new-password">
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><%= user ? 'Save changes' : 'Create user' %></button>
+            <a href="/database/users" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>

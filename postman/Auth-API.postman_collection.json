@@ -1,0 +1,1054 @@
+{
+  "info": {
+    "_postman_id": "f3a9c210-9000-4a00-b000-auth-nodejs",
+    "name": "Nodejs API",
+    "description": "## Auth API (`/auth/*`)\n\n### Email delivery\nOTP, password-reset, and welcome emails are sent via SMTP (Hostinger/Titan). Configure **`EMAIL_*`**, **`APP_NAME`** (Property 973), and **`APP_PUBLIC_URL`** in `config.env`. Set **`OTP_HIDE_FROM_RESPONSE=1`** in production.\n\n**Branded templates:** OTP emails show the code in a Property 973–styled layout with a **Copy code** button. Password-reset emails include a **Reset password** CTA. Welcome emails use the same theme after OTP verify.\n\n**OTP copy helper:** **GET `/auth/otp/copy?code=`** — opened from the email **Copy code** button; returns HTML that auto-copies the code. Uses **`APP_API_PUBLIC_URL`** when set, otherwise **`APP_PUBLIC_URL`** (must reach this API).\n\n### Register\n- **POST `/auth/register`** — `{ \"fullName\", \"mobileNumber\", \"email\", \"password\" }`; branded OTP emailed to **`email`**.\n\n### OTP login\n- **POST `/auth/otp/send`** → **POST `/auth/otp/verify`** — OTP emailed to the account email (user must be **`mobile_verified`**).\n\n### Password reset\n**Option A — reset link (branded email):**\n- **POST `/auth/forgot-password`** — `{ \"email\" }`.\n- **GET `/auth/reset-password/verify?resetToken=`** · **POST `/auth/reset-password`**.\n\n**Option B — mobile + OTP (OTP emailed):**\n- **POST `/auth/forgot-password`** — `{ \"mobileNumber\" }`.\n- **POST `/auth/forgot-password/verify-otp`** — `{ \"mobileNumber\", \"otp\" }` → **`data.resetToken`**.\n- **POST `/auth/reset-password`**.\n\nDev: **`PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE=1`** → email forgot-password may return **`data.resetToken`**.\n\n### Users API (`/api/users`)\n- **GET `/api/users`** — Bearer JWT; paginated list.\n- **PATCH `/api/users/:id`** — Bearer JWT; update own profile only.\n\n### Before you send requests\n1. Import **Local.postman_environment.json** and select **Local · Nodejs Auth**.\n2. Set **`sampleEmail`** to an inbox you can read (or rely on **`data.otp`** in dev).\n3. Run **`npm run db:migrate`**.\n\n### Flow · new user\n1. **Register** (with email) → check inbox for branded OTP (or use **`data.otp`** / **GET OTP copy page**).\n2. **OTP Verify** → tokens + welcome email.\n\n### Collection variables\n`lastOtp`, `accessToken`, `refreshToken`, `userId`, `resetToken`, `countryId`, `stateId`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.5.0"
+  },
+  "variable": [
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "lastOtp", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "countryId", "value": "" },
+    { "key": "stateId", "value": "" },
+    { "key": "resetToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Signup · OTP verify",
+      "item": [
+        {
+          "name": "POST Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test(\"success true\", () => pm.expect(j).to.have.property('success', true));",
+                  "  if (j.data?.otp !== undefined && j.data.otp !== '') {",
+                  "    pm.collectionVariables.set('lastOtp', String(j.data.otp));",
+                  "    pm.test(\"data.otp present\", () => pm.expect(j.data.otp).to.match(/^\\d{6}$/));",
+                  "  } else if (pm.response.code === 201) {",
+                  "    console.warn('Register: no data.otp (server may have OTP_HIDE_FROM_RESPONSE=1).');",
+                  "  }",
+                  "} catch (e) { pm.test(\"Valid JSON\", () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"{{sampleFullName}}\",\n  \"mobileNumber\": \"{{sampleMobile}}\",\n  \"email\": \"{{sampleEmail}}\",\n  \"password\": \"{{samplePassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "**POST `/auth/register`**\nCreates user with `mobile_verified: false`. **`email`** is required; a branded Property 973 OTP email is sent (code + **Copy code** button).\nReturns `data.mobileNumber`, `data.email`, `data.emailMasked`, `data.expiresInSeconds`, and usually **`data.otp`** unless `OTP_HIDE_FROM_RESPONSE=1`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST OTP Verify",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const otp = pm.collectionVariables.get('lastOtp');",
+                  "if (!otp || otp.length !== 6) {",
+                  "  console.warn('lastOtp is missing or invalid — run Register or OTP Send first, or paste a 6-digit code in body.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (pm.response.code === 200 && j.success && j.data) {",
+                  "    if (j.data.accessToken) pm.collectionVariables.set('accessToken', j.data.accessToken);",
+                  "    if (j.data.refreshToken) pm.collectionVariables.set('refreshToken', j.data.refreshToken);",
+                  "    pm.test(\"Tokens captured\", () => pm.expect(pm.collectionVariables.get('accessToken')).to.be.ok);",
+                  "  }",
+                  "} catch (_e) { console.warn('OTP Verify: could not parse JSON'); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"{{sampleMobile}}\",\n  \"otp\": \"{{lastOtp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/otp/verify",
+            "description": "**POST `/auth/otp/verify`**\nBody: `mobileNumber`, `otp` (use **`{{lastOtp}}`** from Register or OTP Send). Returns `accessToken`, `refreshToken`, `user`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Login · OTP step",
+      "item": [
+        {
+          "name": "POST OTP Send",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test(\"success true\", () => pm.expect(j).to.have.property('success', true));",
+                  "  if (j.data?.otp !== undefined && j.data.otp !== '') {",
+                  "    pm.collectionVariables.set('lastOtp', String(j.data.otp));",
+                  "    pm.test(\"data.otp present\", () => pm.expect(j.data.otp).to.match(/^\\d{6}$/));",
+                  "  } else if (pm.response.code === 200) {",
+                  "    console.warn('OTP Send: no data.otp (check OTP_HIDE_FROM_RESPONSE on server).');",
+                  "  }",
+                  "} catch (e) { pm.test(\"Valid JSON\", () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"{{sampleFullName}}\",\n  \"mobileNumber\": \"{{sampleMobile}}\",\n  \"password\": \"{{samplePassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/otp/send",
+            "description": "**POST `/auth/otp/send`**\nRequires existing user with **`mobile_verified`** true + correct **`password`** + **`fullName`** match. Branded OTP email sent to the account address (includes **Copy code** link). Returns **`data.email`**, **`data.emailMasked`**, and usually **`data.otp`** when exposed by API."
+          },
+          "response": []
+        },
+        {
+          "name": "POST OTP Verify (reuse)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Same POST /auth/otp/verify — for Collection Runner order after OTP Send.",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (pm.response.code === 200 && j.success && j.data) {",
+                  "    if (j.data.accessToken) pm.collectionVariables.set('accessToken', j.data.accessToken);",
+                  "    if (j.data.refreshToken) pm.collectionVariables.set('refreshToken', j.data.refreshToken);",
+                  "  }",
+                  "} catch (_e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"{{sampleMobile}}\",\n  \"otp\": \"{{lastOtp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/otp/verify",
+            "description": "Same **`POST `/auth/otp/verify`**` as signup folder — reuse after OTP Send."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Session · JWT",
+      "item": [
+        {
+          "name": "POST Login (password)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (j.data) {",
+                  "    if (j.data.accessToken) pm.collectionVariables.set('accessToken', j.data.accessToken);",
+                  "    if (j.data.refreshToken) pm.collectionVariables.set('refreshToken', j.data.refreshToken);",
+                  "  }",
+                  "} catch (_e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"{{sampleMobile}}\",\n  \"password\": \"{{samplePassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "**POST `/auth/login`** · Password JWT (no OTP). Requires **`mobile_verified`**."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (j.data && pm.response.code === 200) {",
+                  "    if (j.data.accessToken) pm.collectionVariables.set('accessToken', j.data.accessToken);",
+                  "    if (j.data.refreshToken) pm.collectionVariables.set('refreshToken', j.data.refreshToken);",
+                  "    pm.test(\"Rotated tokens\", () => pm.expect(j.data.refreshToken).to.be.ok);",
+                  "  }",
+                  "} catch (_e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "**POST `/auth/refresh`**  \nRequires `refreshToken` in body (`{}` is rejected)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"User payload\", () => {",
+                  "    const j = pm.response.json();",
+                  "    pm.expect(j.data && j.data.user && j.data.user.id).to.be.ok;",
+                  "    if (j.data?.user?.id) pm.collectionVariables.set('userId', String(j.data.user.id));",
+                  "  });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "**GET `/auth/me`** · `Authorization: Bearer {{accessToken}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Logout (Bearer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('accessToken', '');",
+                  "  pm.collectionVariables.set('refreshToken', '');",
+                  "  pm.collectionVariables.set('lastOtp', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "**POST `/auth/logout`** with Bearer access token clears server refresh session."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Logout (refresh body)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('accessToken', '');",
+                  "  pm.collectionVariables.set('refreshToken', '');",
+                  "  pm.collectionVariables.set('lastOtp', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "**POST `/auth/logout`** with `refreshToken` only (optional when access token unavailable)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Password reset (email link)",
+      "description": "Send `{ \"email\" }` to **POST `/auth/forgot-password`**. User receives a branded email with a **Reset password** button linking to **`APP_PUBLIC_URL/resetpassword?token=`**. Enable **`PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE=1`** to capture **`resetToken`** without reading email.",
+      "item": [
+        {
+          "name": "POST Forgot password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test('success true', () => pm.expect(j).to.have.property('success', true));",
+                  "  if (j.data?.resetToken) {",
+                  "    pm.collectionVariables.set('resetToken', String(j.data.resetToken));",
+                  "    pm.test('resetToken captured', () => pm.expect(pm.collectionVariables.get('resetToken')).to.be.ok);",
+                  "  } else if (pm.response.code === 200) {",
+                  "    console.warn('Forgot password: no data.resetToken (set PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE=1 or use email link).');",
+                  "  }",
+                  "} catch (e) { pm.test('Valid JSON', () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sampleAdminEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/forgot-password",
+            "description": "**POST `/auth/forgot-password`**\nBody: `{ \"email\": \"user@example.com\" }`. Sends branded password-reset email with **Reset password** CTA. Generic success even if email unknown. May include **`data.resetToken`** when server env allows it."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Verify reset token",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.collectionVariables.get('resetToken');",
+                  "if (!t) console.warn('resetToken empty — run Forgot password first or paste token from email.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test('success true', () => pm.expect(j).to.have.property('success', true));",
+                  "} catch (e) { pm.test('Valid JSON', () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password/verify?resetToken={{resetToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password", "verify"],
+              "query": [{ "key": "resetToken", "value": "{{resetToken}}" }]
+            },
+            "description": "**GET `/auth/reset-password/verify?resetToken=`** — check token before showing reset form in mobile/web app."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Reset password",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.collectionVariables.get('resetToken');",
+                  "if (!t) console.warn('resetToken empty — run Forgot password first.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test('success true', () => pm.expect(j).to.have.property('success', true));",
+                  "} catch (e) { pm.test('Valid JSON', () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"password\": \"NewPass8+\",\n  \"confirmPassword\": \"NewPass8+\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/reset-password",
+            "description": "**POST `/auth/reset-password`**\nBody: `resetToken`, `password`, `confirmPassword` (optional but recommended)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Password reset (mobile OTP)",
+      "description": "For app users registered with mobile + email. Branded OTP email (with **Copy code** button) is sent to the account address. Run after a verified user exists (Register → OTP Verify).",
+      "item": [
+        {
+          "name": "POST Forgot password (mobile)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test('success true', () => pm.expect(j).to.have.property('success', true));",
+                  "  if (j.data?.otp !== undefined && j.data.otp !== '') {",
+                  "    pm.collectionVariables.set('lastOtp', String(j.data.otp));",
+                  "  } else if (pm.response.code === 200) {",
+                  "    console.warn('Check email for OTP (or set OTP_HIDE_FROM_RESPONSE=0 in dev).');",
+                  "  }",
+                  "} catch (e) { pm.test('Valid JSON', () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"{{sampleMobile}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/forgot-password",
+            "description": "**POST `/auth/forgot-password`**\nBody: `{ \"mobileNumber\": \"+966...\" }`. Sends branded OTP email to the user's registered address. Returns `data.email`, `data.emailMasked`, `data.expiresInSeconds`, and optionally `data.otp`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Verify reset OTP",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const otp = pm.collectionVariables.get('lastOtp');",
+                  "if (!otp || otp.length !== 6) console.warn('lastOtp missing — run Forgot password (mobile) first or check email.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test('success true', () => pm.expect(j).to.have.property('success', true));",
+                  "  if (j.data?.resetToken) {",
+                  "    pm.collectionVariables.set('resetToken', String(j.data.resetToken));",
+                  "    pm.test('resetToken captured', () => pm.expect(pm.collectionVariables.get('resetToken')).to.be.ok);",
+                  "  }",
+                  "} catch (e) { pm.test('Valid JSON', () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"{{sampleMobile}}\",\n  \"otp\": \"{{lastOtp}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/forgot-password/verify-otp",
+            "description": "**POST `/auth/forgot-password/verify-otp`**\nBody: `mobileNumber`, `otp`. Returns **`data.resetToken`** (valid 1 hour)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Reset password (after OTP)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.collectionVariables.get('resetToken');",
+                  "if (!t) console.warn('resetToken empty — run Verify reset OTP first.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test('success true', () => pm.expect(j).to.have.property('success', true));",
+                  "} catch (e) { pm.test('Valid JSON', () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"password\": \"NewPass8+\",\n  \"confirmPassword\": \"NewPass8+\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/reset-password",
+            "description": "**POST `/auth/reset-password`**\nSame as email-link flow — use **`resetToken`** from verify-otp."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "JWT-protected user APIs. **PATCH** only allows updating the authenticated user's own row (`:id` must match token subject).",
+      "item": [
+        {
+          "name": "GET List users",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.collectionVariables.get('accessToken');",
+                  "if (!t) console.warn('accessToken empty — run OTP Verify or Login first.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test(\"success true\", () => pm.expect(j).to.have.property('success', true));",
+                  "  pm.test(\"pagination present\", () => {",
+                  "    pm.expect(j.data?.pagination?.page).to.be.ok;",
+                  "    pm.expect(Array.isArray(j.data?.users)).to.be.true;",
+                  "  });",
+                  "} catch (e) { pm.test(\"Valid JSON\", () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"],
+              "query": [
+                { "key": "page", "value": "1", "description": "Page number (default 1)" },
+                { "key": "limit", "value": "20", "description": "Page size (default 20, max 100)" }
+              ]
+            },
+            "description": "**GET `/api/users`** · Bearer JWT. Returns `data.users` and `data.pagination` (`page`, `limit`, `total`, `totalPages`). Password and refresh token fields are excluded."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Update own profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.collectionVariables.get('accessToken');",
+                  "const uid = pm.collectionVariables.get('userId');",
+                  "if (!t) console.warn('accessToken empty — run OTP Verify or Login first.');",
+                  "if (!uid) console.warn('userId empty — run GET Me first (sets userId from token).');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"updated user\", () => {",
+                  "    const j = pm.response.json();",
+                  "    pm.expect(j.success === true);",
+                  "    pm.expect(j.data?.user?.id).to.be.ok;",
+                  "  });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"{{sampleFullName}}\",\n  \"email\": \"{{sampleEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/users/{{userId}}",
+            "description": "**PATCH `/api/users/:id`** · Bearer JWT. Only the authenticated user may update their row (403 otherwise). Optional body: `fullName`, `email`, `mobileNumber` (E.164), `mobileVerified`, `password`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Locations",
+      "description": "Public reference data. Run **Countries** first (sets `countryId`), then **States** (sets `stateId`), then **Cities**.",
+      "item": [
+        {
+          "name": "GET Countries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test(\"success true\", () => pm.expect(j).to.have.property('success', true));",
+                  "  const list = j.data?.countries;",
+                  "  pm.test(\"countries array\", () => pm.expect(Array.isArray(list)).to.be.true);",
+                  "  if (list?.length) pm.collectionVariables.set('countryId', String(list[0].id));",
+                  "} catch (e) { pm.test(\"Valid JSON\", () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/countries",
+            "description": "**GET `/api/countries`** · Public. Returns `data.countries[]` with `id`, `iso2`, `name`."
+          },
+          "response": []
+        },
+        {
+          "name": "GET States by country",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const cid = pm.collectionVariables.get('countryId') || pm.environment.get('countryId');",
+                  "if (!cid) console.warn('countryId empty — run GET Countries first or set countryId in environment.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test(\"success true\", () => pm.expect(j).to.have.property('success', true));",
+                  "  const list = j.data?.states;",
+                  "  if (list?.length) pm.collectionVariables.set('stateId', String(list[0].id));",
+                  "} catch (e) { pm.test(\"Valid JSON\", () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/states?countryId={{countryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "states"],
+              "query": [
+                { "key": "countryId", "value": "{{countryId}}", "description": "Required positive integer" }
+              ]
+            },
+            "description": "**GET `/api/states?countryId=`** · Public. Returns `data.states[]` with `id`, `country_id`, `name`. Missing `countryId` → 400."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Cities by state",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const sid = pm.collectionVariables.get('stateId') || pm.environment.get('stateId');",
+                  "if (!sid) console.warn('stateId empty — run GET States first or set stateId in environment.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test(\"success true\", () => pm.expect(j).to.have.property('success', true));",
+                  "  pm.test(\"cities array\", () => pm.expect(Array.isArray(j.data?.cities)).to.be.true);",
+                  "} catch (e) { pm.test(\"Valid JSON\", () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/cities?stateId={{stateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cities"],
+              "query": [
+                { "key": "stateId", "value": "{{stateId}}", "description": "Required positive integer" }
+              ]
+            },
+            "description": "**GET `/api/cities?stateId=`** · Public. Returns `data.cities[]` with `id`, `state_id`, `name`. Missing `stateId` → 400."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Add listing",
+      "description": "Matches **`AddListingFlow`** (`broker` | `owner` | `host` + **`listingKind`**). Requires JWT for preference endpoints.",
+      "item": [
+        {
+          "name": "GET Options",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  pm.test(\"success true\", () => pm.expect(j).to.have.property('success', true));",
+                  "  pm.test(\"roles listed\", () => pm.expect(j.data?.roles?.length).to.eql(3));",
+                  "} catch (e) { pm.test(\"Valid JSON\", () => { throw e; }); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/add-listing/options",
+            "description": "**GET `/api/add-listing/options`** · Public. Returns allowed combinations for each role."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Preference",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.collectionVariables.get('accessToken');",
+                  "if (!t) console.warn('accessToken empty — run OTP Verify or Login first.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"success\", () => {",
+                  "    const j = pm.response.json();",
+                  "    pm.expect(j.success === true);",
+                  "    pm.expect(j.data).to.have.property('preference');",
+                  "  });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/add-listing/preference",
+            "description": "**GET `/api/add-listing/preference`** · Bearer **`{{accessToken}}`**. Returns `data.preference` or `null` if never saved."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Save preference",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.collectionVariables.get('accessToken');",
+                  "if (!t) console.warn('accessToken empty — run OTP Verify or Login first.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"saved\", () => {",
+                  "    const j = pm.response.json();",
+                  "    pm.expect(j.success === true);",
+                  "    pm.expect(j.data?.preference?.role).to.be.ok;",
+                  "    pm.expect(j.data?.preference?.listingKind).to.be.ok;",
+                  "  });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"owner\",\n  \"listingKind\": \"marketing\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/add-listing/preference",
+            "description": "**PUT `/api/add-listing/preference`** · Upserts row in **`listing_preferences`**. Edit JSON for **`broker`**/`licensed`, **`host`**/`dailyMonthly`, etc."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Email (SMTP & templates)",
+      "description": "SMTP diagnostics and OTP copy helper. **GET `/api/email/status`** · **POST `/api/email/test`**. Branded OTP/reset/welcome emails are sent by auth flows above. **GET `/auth/otp/copy`** simulates the email **Copy code** button (uses **`{{lastOtp}}`**). Disabled in production unless `EMAIL_TEST_ENABLED=1`. Optional **`X-Email-Test-Secret`** if `EMAIL_TEST_SECRET` is set.",
+      "item": [
+        {
+          "name": "GET Email status (SMTP verify)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/email/status",
+            "description": "**GET `/api/email/status`** — returns configured host/port/from and runs SMTP verify (no email sent)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Send test email",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sampleEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/email/test",
+            "description": "**POST `/api/email/test`** — body `{ \"email\": \"inbox@example.com\" }`. Sends a simple HTML SMTP connectivity test (auth flows use branded Property 973 templates)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET OTP copy page",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const otp = pm.collectionVariables.get('lastOtp');",
+                  "if (!otp || !/^\\d{6}$/.test(otp)) {",
+                  "  console.warn('lastOtp missing — run Register, OTP Send, or Forgot password (mobile) first.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const otp = pm.collectionVariables.get('lastOtp');",
+                  "if (otp && /^\\d{6}$/.test(otp)) {",
+                  "  pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "  pm.test('HTML copy page', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('text/html');",
+                  "    pm.expect(pm.response.text()).to.include(otp);",
+                  "    pm.expect(pm.response.text()).to.include('Copy again');",
+                  "  });",
+                  "} else {",
+                  "  pm.test('Skipped (no lastOtp)', () => pm.expect(true).to.be.true);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/otp/copy?code={{lastOtp}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "otp", "copy"],
+              "query": [{ "key": "code", "value": "{{lastOtp}}" }]
+            },
+            "description": "**GET `/auth/otp/copy?code=`** — same page opened by the **Copy code** button in OTP emails. Auto-copies the code in the browser. Use **`{{lastOtp}}`** after Register, OTP Send, or mobile forgot-password. In production, ensure **`APP_PUBLIC_URL`** or **`APP_API_PUBLIC_URL`** routes to this API."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

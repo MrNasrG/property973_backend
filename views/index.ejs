@@ -1,0 +1,74 @@
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div style="background:#ede9fe; border-radius:12px; padding:14px;">
+                    <i class="bi bi-people-fill" style="font-size:1.5rem; color:#4f46e5;"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.85rem;">Total Users</div>
+                    <div style="font-size:1.6rem; font-weight:700; color:#1e1b4b;"><%= typeof totalUsers !== 'undefined' ? totalUsers : 0 %></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div style="background:#dcfce7; border-radius:12px; padding:14px;">
+                    <i class="bi bi-graph-up-arrow" style="font-size:1.5rem; color:#16a34a;"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.85rem;">Revenue</div>
+                    <div style="font-size:1.6rem; font-weight:700; color:#1e1b4b;">$0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div style="background:#fef9c3; border-radius:12px; padding:14px;">
+                    <i class="bi bi-building" style="font-size:1.5rem; color:#ca8a04;"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.85rem;">Listed Properties</div>
+                    <div style="font-size:1.6rem; font-weight:700; color:#1e1b4b;"><%= typeof totalListedProperties !== 'undefined' ? totalListedProperties : 0 %></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div style="background:#fee2e2; border-radius:12px; padding:14px;">
+                    <i class="bi bi-exclamation-triangle-fill" style="font-size:1.5rem; color:#dc2626;"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:0.85rem;">Issues</div>
+                    <div style="font-size:1.6rem; font-weight:700; color:#1e1b4b;">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3" style="color:#1e1b4b;">Welcome, <%= typeof locals.username !== 'undefined' ? locals.username : 'Admin' %>!</h6>
+            <p class="text-muted">Your admin panel is running successfully. You are logged in as <strong><%= typeof locals.useremail !== 'undefined' ? locals.useremail : '' %></strong>.</p>
+            <p class="text-muted mb-0">You can extend this dashboard by adding more routes and views.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3" style="color:#1e1b4b;">Quick Links</h6>
+            <div class="d-grid gap-2">
+                <a href="/logout" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-box-arrow-right me-1"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

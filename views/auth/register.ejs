@@ -1,0 +1,30 @@
+<div class="text-center mb-4">
+    <div class="auth-logo mb-2"><i class="bi bi-grid-fill"></i> Admin</div>
+    <p class="text-muted">Create your account</p>
+</div>
+
+<% if (messages && messages.error && messages.error.length > 0) { %>
+    <div class="alert alert-danger"><%= messages.error[0] %></div>
+<% } %>
+<% if (messages && messages.message && messages.message.length > 0) { %>
+    <div class="alert alert-success"><%= messages.message[0] %></div>
+<% } %>
+
+<form action="/register" method="POST">
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Full Name</label>
+        <input type="text" name="username" class="form-control" placeholder="Enter your name" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Email</label>
+        <input type="email" name="email" class="form-control" placeholder="Enter your email" required>
+    </div>
+    <div class="mb-4">
+        <label class="form-label fw-semibold">Password</label>
+        <input type="password" name="password" class="form-control" placeholder="Create a password" required>
+    </div>
+    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Register</button>
+    <p class="text-center mt-3 mb-0" style="font-size:0.92rem;">
+        Already have an account? <a href="/login" class="text-decoration-none" style="color:#4f46e5;">Sign in</a>
+    </p>
+</form>

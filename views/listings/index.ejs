@@ -1,0 +1,124 @@
+<% if (messages && messages.error && messages.error.length > 0) { %>
+<div class="alert alert-danger"><%= messages.error[0] %></div>
+<% } %>
+<% if (messages && messages.message && messages.message.length > 0) { %>
+<div class="alert alert-success"><%= messages.message[0] %></div>
+<% } %>
+
+<div class="card p-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <h6 class="fw-bold mb-0" style="color:#1e1b4b;"><i class="bi bi-building me-2"></i>Property Listings</h6>
+    </div>
+
+    <form method="get" action="/database/listings" class="row g-2 align-items-end mb-2">
+        <div class="col-sm-auto">
+            <label for="month" class="form-label small mb-1 text-muted">Month</label>
+            <input type="month" id="month" name="month" class="form-control form-control-sm"
+                value="<%= typeof month !== 'undefined' ? month : '' %>">
+        </div>
+        <div class="col-sm-auto">
+            <label for="dateFrom" class="form-label small mb-1 text-muted">From date</label>
+            <input type="date" id="dateFrom" name="dateFrom" class="form-control form-control-sm"
+                value="<%= typeof dateFrom !== 'undefined' ? dateFrom : '' %>">
+        </div>
+        <div class="col-sm-auto">
+            <label for="dateTo" class="form-label small mb-1 text-muted">To date</label>
+            <input type="date" id="dateTo" name="dateTo" class="form-control form-control-sm"
+                value="<%= typeof dateTo !== 'undefined' ? dateTo : '' %>">
+        </div>
+        <div class="col-sm-auto d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="bi bi-funnel me-1"></i> Filter
+            </button>
+            <a href="/database/listings" class="btn btn-sm btn-outline-secondary">Clear</a>
+        </div>
+    </form>
+    <p class="text-muted small mb-4">Pick a month, or set both From and To dates. A single date alone will not filter the list.</p>
+
+    <% if (typeof filterError !== 'undefined' && filterError) { %>
+    <div class="alert alert-warning py-2 mb-3"><%= filterError %></div>
+    <% } %>
+
+    <% if (typeof filterActive !== 'undefined' && filterActive) { %>
+    <p class="text-muted small mb-3">
+        Showing <%= listings.length %> listing<%= listings.length === 1 ? '' : 's' %>
+        from <%= dateFrom %> to <%= dateTo %>
+    </p>
+    <% } %>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Photo</th>
+                    <th>Property</th>
+                    <th>Location</th>
+                    <th>Price</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (!listings || listings.length === 0) { %>
+                <tr>
+                    <td colspan="8" class="text-muted py-4 text-center">
+                        <% if (typeof filterActive !== 'undefined' && filterActive) { %>
+                        No property listings match your date range.
+                        <% } else { %>
+                        No property listings yet.
+                        <% } %>
+                    </td>
+                </tr>
+                <% } else { %>
+                    <% listings.forEach(function (listing) { %>
+                    <tr>
+                        <td>
+                            <% if (listing.photos && listing.photos.length > 0) { %>
+                            <img src="<%= listing.photos[0].url %>" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;">
+                            <% } else { %>
+                            <span class="text-muted">—</span>
+                            <% } %>
+                        </td>
+                        <td>
+                            <div class="fw-semibold"><%= listing.property_type %></div>
+                            <small class="text-muted text-capitalize"><%= listing.purpose %> · <%= listing.listing_kind %></small>
+                        </td>
+                        <td>
+                            <div><%= listing.city %></div>
+                            <small class="text-muted"><%= listing.district %></small>
+                        </td>
+                        <td><%= Number(listing.price).toLocaleString() %></td>
+                        <td>
+                            <% if (listing.owner) { %>
+                            <div><%= listing.owner.name %></div>
+                            <small class="text-muted"><%= listing.owner.email != null ? listing.owner.email : '—' %></small>
+                            <% } else { %>
+                            <span class="text-muted">—</span>
+                            <% } %>
+                        </td>
+                        <td>
+                            <% if (listing.status === 'active') { %>
+                            <span class="badge text-bg-success text-capitalize"><%= listing.status %></span>
+                            <% } else if (listing.status === 'draft') { %>
+                            <span class="badge text-bg-secondary text-capitalize"><%= listing.status %></span>
+                            <% } else if (listing.status === 'inactive') { %>
+                            <span class="badge text-bg-warning text-capitalize"><%= listing.status %></span>
+                            <% } else { %>
+                            <span class="badge text-bg-danger text-capitalize"><%= listing.status %></span>
+                            <% } %>
+                        </td>
+                        <td class="text-nowrap">
+                            <%= new Date(listing.created_at).toLocaleDateString() %>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a href="/database/listings/<%= listing.id %>" class="btn btn-sm btn-outline-primary">View</a>
+                        </td>
+                    </tr>
+                    <% }); %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>

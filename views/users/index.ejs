@@ -1,0 +1,63 @@
+<% if (messages && messages.error && messages.error.length > 0) { %>
+<div class="alert alert-danger"><%= messages.error[0] %></div>
+<% } %>
+<% if (messages && messages.message && messages.message.length > 0) { %>
+<div class="alert alert-success"><%= messages.message[0] %></div>
+<% } %>
+
+<div class="card p-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <h6 class="fw-bold mb-0" style="color:#1e1b4b;"><i class="bi bi-people me-2"></i>Users</h6>
+        <a href="/database/users/new" class="btn btn-sm btn-primary rounded-pill px-3">
+            <i class="bi bi-plus-lg me-1"></i> Add user
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Verified</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (!users || users.length === 0) { %>
+                <tr>
+                    <td colspan="6" class="text-muted py-4 text-center">No users yet.</td>
+                </tr>
+                <% } else { %>
+                    <% users.forEach(function (u) { %>
+                    <tr>
+                        <td><%= u.id %></td>
+                        <td><%= u.name %></td>
+                        <td><%= u.email != null ? u.email : '—' %></td>
+                        <td><%= u.mobile_number != null ? u.mobile_number : '—' %></td>
+                        <td>
+                            <% if (u.mobile_verified) { %>
+                            <span class="badge text-bg-success">Yes</span>
+                            <% } else { %>
+                            <span class="badge text-bg-secondary">No</span>
+                            <% } %>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a href="/database/users/<%= u.id %>/edit" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <% if (typeof locals.userid !== 'undefined' && locals.userid === u.id) { %>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Cannot delete yourself">Delete</button>
+                            <% } else { %>
+                            <form action="/database/users/<%= u.id %>/delete" method="post" class="d-inline" onsubmit="return confirm('Delete this user?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                            <% } %>
+                        </td>
+                    </tr>
+                    <% }); %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>

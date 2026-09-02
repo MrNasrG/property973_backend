@@ -1,0 +1,251 @@
+<% if (messages && messages.error && messages.error.length > 0) { %>
+<div class="alert alert-danger"><%= messages.error[0] %></div>
+<% } %>
+
+<%
+function fmt(val) {
+    if (val === null || val === undefined || val === '') return '—';
+    return val;
+}
+function fmtNum(val) {
+    if (val === null || val === undefined || val === '') return '—';
+    return Number(val).toLocaleString();
+}
+function fmtBool(val) {
+    if (val === null || val === undefined) return '—';
+    return val ? 'Yes' : 'No';
+}
+function fmtDate(val) {
+    if (!val) return '—';
+    return new Date(val).toLocaleString();
+}
+function fmtLabel(val) {
+    if (!val) return '—';
+    return String(val).replace(/_/g, ' ');
+}
+var l = listing;
+var owner = listing.owner;
+%>
+
+<div class="mb-3">
+    <a href="/database/listings" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to listings
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card p-4 mb-4">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+                <div>
+                    <h6 class="fw-bold mb-1" style="color:#1e1b4b;">
+                        <i class="bi bi-building me-2"></i><%= fmt(l.property_type) %>
+                    </h6>
+                    <div class="text-muted text-capitalize">
+                        <%= fmtLabel(l.purpose) %> · <%= fmtLabel(l.listing_kind) %>
+                    </div>
+                </div>
+                <div>
+                    <% if (l.status === 'active') { %>
+                    <span class="badge text-bg-success text-capitalize"><%= l.status %></span>
+                    <% } else if (l.status === 'draft') { %>
+                    <span class="badge text-bg-secondary text-capitalize"><%= l.status %></span>
+                    <% } else if (l.status === 'inactive') { %>
+                    <span class="badge text-bg-warning text-capitalize"><%= l.status %></span>
+                    <% } else { %>
+                    <span class="badge text-bg-danger text-capitalize"><%= l.status %></span>
+                    <% } %>
+                </div>
+            </div>
+
+            <% if (l.photos && l.photos.length > 0) { %>
+            <div class="mb-4">
+                <h6 class="fw-semibold mb-3" style="color:#1e1b4b;">Photos</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    <% l.photos.forEach(function (photo) { %>
+                    <a href="<%= photo.url %>" target="_blank" rel="noopener">
+                        <img src="<%= photo.url %>" alt="" style="width:120px;height:90px;object-fit:cover;border-radius:8px;">
+                    </a>
+                    <% }); %>
+                </div>
+            </div>
+            <% } %>
+
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;">Overview</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Price</div>
+                    <div class="fw-semibold"><%= fmtNum(l.price) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Premium period</div>
+                    <div class="text-capitalize"><%= fmtLabel(l.premium_period) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Area</div>
+                    <div><%= fmtNum(l.area) %> m²</div>
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;">Location</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">City</div>
+                    <div><%= fmt(l.city) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">District</div>
+                    <div><%= fmt(l.district) %></div>
+                </div>
+                <div class="col-12">
+                    <div class="text-muted small">Address</div>
+                    <div><%= fmt(l.address) %></div>
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;">Property details</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">Bedrooms</div>
+                    <div><%= fmt(l.bedrooms) %></div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">Living rooms</div>
+                    <div><%= fmt(l.living_rooms) %></div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">WC</div>
+                    <div><%= fmt(l.wc) %></div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">Floor</div>
+                    <div><%= fmt(l.floor) %></div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">Age less than</div>
+                    <div><%= fmt(l.age_less_than) %></div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">Occupant type</div>
+                    <div class="text-capitalize"><%= fmtLabel(l.occupant_type) %></div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">Street width</div>
+                    <div><%= l.street_width != null ? fmtNum(l.street_width) + ' m' : '—' %></div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="text-muted small">Street direction</div>
+                    <div><%= fmt(l.street_direction) %></div>
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;">Amenities</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Furnished</div>
+                    <div><%= fmtBool(l.furnished) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Car entrance</div>
+                    <div><%= fmtBool(l.car_entrance) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Air conditioned</div>
+                    <div><%= fmtBool(l.air_conditioned) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Private roof</div>
+                    <div><%= fmtBool(l.private_roof) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">In villa</div>
+                    <div><%= fmtBool(l.in_villa) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Two entrances</div>
+                    <div><%= fmtBool(l.two_entrances) %></div>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <div class="text-muted small">Special entrance</div>
+                    <div><%= fmtBool(l.special_entrance) %></div>
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;">Description</h6>
+            <p class="mb-0 text-muted" style="white-space:pre-wrap;"><%= fmt(l.description) %></p>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card p-4 mb-4">
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;"><i class="bi bi-person me-2"></i>Owner</h6>
+            <% if (owner) { %>
+            <div class="mb-3">
+                <div class="text-muted small">Name</div>
+                <div class="fw-semibold"><%= fmt(owner.name) %></div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small">Email</div>
+                <div><%= fmt(owner.email) %></div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small">Mobile</div>
+                <div><%= fmt(owner.mobile_number) %></div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small">Mobile verified</div>
+                <div>
+                    <% if (owner.mobile_verified) { %>
+                    <span class="badge text-bg-success">Yes</span>
+                    <% } else { %>
+                    <span class="badge text-bg-secondary">No</span>
+                    <% } %>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small">User ID</div>
+                <div><%= owner.id %></div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small">Member since</div>
+                <div><%= fmtDate(owner.created_at) %></div>
+            </div>
+            <a href="/database/users/<%= owner.id %>/edit" class="btn btn-sm btn-outline-primary">Edit owner</a>
+            <% } else { %>
+            <p class="text-muted mb-0">Owner information not available.</p>
+            <% } %>
+        </div>
+
+        <div class="card p-4 mb-4">
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;"><i class="bi bi-telephone me-2"></i>Contact</h6>
+            <div class="mb-3">
+                <div class="text-muted small">Contact phone</div>
+                <div><%= fmt(l.contact_phone) %></div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small">Allow inquiries</div>
+                <div><%= fmtBool(l.allow_inquiries) %></div>
+            </div>
+            <div class="mb-0">
+                <div class="text-muted small">Aqar partners assistance</div>
+                <div><%= fmtBool(l.aqar_partners_assistance) %></div>
+            </div>
+        </div>
+
+        <div class="card p-4">
+            <h6 class="fw-semibold mb-3" style="color:#1e1b4b;"><i class="bi bi-info-circle me-2"></i>Listing info</h6>
+            <div class="mb-3">
+                <div class="text-muted small">Listing ID</div>
+                <div class="small text-break"><%= l.id %></div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small">Created</div>
+                <div><%= fmtDate(l.created_at) %></div>
+            </div>
+            <div class="mb-0">
+                <div class="text-muted small">Last updated</div>
+                <div><%= fmtDate(l.updated_at) %></div>
+            </div>
+        </div>
+    </div>
+</div>
